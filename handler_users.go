@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/trungdoanle1101/server/internal/database"
+	"github.com/trungdoanle1101/chirp/internal/auth"
+	"github.com/trungdoanle1101/chirp/internal/database"
 )
-
-
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameter struct {
 		Email string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	params := parameter{}
@@ -24,11 +24,18 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't hash password", err)
+		return
+	}
+
 	cuparams := database.CreateUserParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Email:     params.Email,
+		HashedPassword: hashedPassword,
 	}
 
 	result, err := cfg.db.CreateUser(r.Context(), cuparams)
