@@ -25,7 +25,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters", err)
+		respondWithError(w, http.StatusBadRequest, "Couldn't decode parameters", err)
 		return
 	}
 
@@ -75,6 +75,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 			CreatedAt: result.CreatedAt,
 			UpdatedAt: result.UpdatedAt,
 			Email:     result.Email,
+			IsChirpyRed: result.IsChirpyRed,
 		},
 		Token:        accessToken,
 		RefreshToken: refreshToken,

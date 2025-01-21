@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -77,16 +78,49 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chirps := make([]Chirp, len(result))
-	for i, row := range result {
-		chirps[i] = Chirp{
+	authorID := uuid.Nil
+	if authorIDStr := r.URL.Query().Get("author_id"); authorIDStr != "" {
+		authorID, err = uuid.Parse(authorIDStr)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Invalid author_id", err)
+			return
+		}
+		result, err = cfg.db.GetChirpsByUserID(r.Context(), authorID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Couldn't fetch chirps", err)
+			return
+		}
+	}
+
+	sortOrder := r.URL.Query().Get("sort")
+	if sortOrder == "" {
+		sortOrder = "asc"
+	} else if sortOrder != "desc" && sortOrder != "asc" {
+		respondWithError(w, http.StatusBadRequest, "sort must be asc or desc", nil)
+		return
+	}
+
+
+	chirps := make([]Chirp, 0, len(result))
+	for _, row := range result {
+		if authorID != uuid.Nil && row.UserID != authorID {
+			continue
+		}
+		chirps = append(chirps, Chirp{
 			ID:        row.ID,
 			CreatedAt: row.CreatedAt,
 			UpdatedAt: row.UpdatedAt,
 			Body:      row.Body,
 			UserID:    row.UserID,
-		}
+		})
 	}
+
+	sort.Slice(chirps, func(i, j int) bool {
+		if sortOrder == "desc" {
+			return chirps[i].CreatedAt.After(chirps[j].CreatedAt)
+		}
+		return chirps[i].CreatedAt.Before(chirps[j].CreatedAt)
+	})
 
 	respondWithJSON(w, http.StatusOK, chirps)
 }
